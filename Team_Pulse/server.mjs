@@ -11,7 +11,7 @@ function loadEnv() {
   if (!existsSync(envPath)) return;
   const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
   for (const line of lines) {
-    const trimmed = line.trim();
+    const trimmed = line.replace(/^\uFEFF/, "").trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
     const separator = trimmed.indexOf("=");
     if (separator === -1) continue;

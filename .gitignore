@@ -37,6 +37,8 @@ build/
 # Local app data
 reports/*.local.md
 data/responses.local.json
+**/data/responses.local.json
+**/reports/*.md
 
 # Local side projects/tools
 Голосовой_ввод/

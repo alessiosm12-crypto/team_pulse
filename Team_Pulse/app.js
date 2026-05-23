@@ -101,20 +101,74 @@ const SAMPLE_RESPONSES = [
 
 const STORAGE_KEY = "teamPulse.responses.v1";
 const REPORT_KEY = "teamPulse.report.v1";
+const API_BASE = window.location.protocol === "file:" ? "http://localhost:3000" : "";
+
+let backendAvailable = false;
+let responsesCache = [];
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function getResponses() {
+  if (responsesCache.length) return responsesCache;
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    responsesCache = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    return responsesCache;
   } catch {
     return [];
   }
 }
 
 function setResponses(responses) {
+  responsesCache = responses;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(responses));
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "content-type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `Request failed: ${response.status}`);
+  }
+  return data;
+}
+
+async function loadResponsesFromServer() {
+  try {
+    const data = await apiRequest("/api/responses");
+    backendAvailable = true;
+    setResponses(data.responses || []);
+  } catch {
+    backendAvailable = false;
+    getResponses();
+  }
+}
+
+async function syncResponsesToServer(responses) {
+  if (!backendAvailable) return;
+  await apiRequest("/api/responses", {
+    method: "PUT",
+    body: JSON.stringify({ responses }),
+  });
+}
+
+async function buildAiReport() {
+  const responses = getResponses();
+  const data = await apiRequest("/api/analyze", {
+    method: "POST",
+    body: JSON.stringify({
+      responses,
+      questions: QUESTIONS,
+      openQuestions: OPEN_QUESTIONS,
+    }),
+  });
+  return data.report;
 }
 
 function renderQuestions() {
@@ -381,7 +435,7 @@ function wireEvents() {
     tab.addEventListener("click", () => switchTab(tab.dataset.tab));
   });
 
-  $("#surveyForm").addEventListener("submit", (event) => {
+  $("#surveyForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const response = {
@@ -390,7 +444,11 @@ function wireEvents() {
       comments: Object.fromEntries(OPEN_QUESTIONS.map((question) => [question.id, String(formData.get(question.id)).trim()])),
       createdAt: new Date().toISOString(),
     };
-    setResponses([...getResponses(), response]);
+    const responses = [...getResponses(), response];
+    setResponses(responses);
+    await syncResponsesToServer(responses).catch((error) => {
+      console.warn("Could not sync responses to backend", error);
+    });
     event.currentTarget.reset();
     $("#teamName").value = response.teamName;
     renderDashboard();
@@ -399,24 +457,39 @@ function wireEvents() {
 
   $("#resetFormBtn").addEventListener("click", () => $("#surveyForm").reset());
 
-  $("#loadSampleBtn").addEventListener("click", () => {
+  $("#loadSampleBtn").addEventListener("click", async () => {
     setResponses(SAMPLE_RESPONSES);
+    await syncResponsesToServer(SAMPLE_RESPONSES).catch((error) => {
+      console.warn("Could not sync sample responses to backend", error);
+    });
     localStorage.removeItem(REPORT_KEY);
     renderDashboard();
     renderReport("");
     switchTab("dashboard");
   });
 
-  $("#clearDataBtn").addEventListener("click", () => {
+  $("#clearDataBtn").addEventListener("click", async () => {
     if (!confirm("Удалить все локальные ответы и отчет?")) return;
+    responsesCache = [];
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(REPORT_KEY);
+    if (backendAvailable) {
+      await apiRequest("/api/responses", { method: "DELETE" }).catch((error) => {
+        console.warn("Could not clear backend responses", error);
+      });
+    }
     renderDashboard();
     renderReport("");
   });
 
-  $("#buildReportBtn").addEventListener("click", () => {
-    const report = buildReport();
+  $("#buildReportBtn").addEventListener("click", async () => {
+    $("#reportState").textContent = "Формирую отчет...";
+    let report;
+    try {
+      report = backendAvailable ? await buildAiReport() : buildReport();
+    } catch (error) {
+      report = `${buildReport()}\n\n## AI-анализ недоступен\n\n${error.message}`;
+    }
     localStorage.setItem(REPORT_KEY, report);
     renderReport(report);
     switchTab("report");
@@ -442,7 +515,12 @@ function wireEvents() {
   });
 }
 
-renderQuestions();
-wireEvents();
-renderDashboard();
-renderReport(localStorage.getItem(REPORT_KEY) || "");
+async function init() {
+  renderQuestions();
+  wireEvents();
+  await loadResponsesFromServer();
+  renderDashboard();
+  renderReport(localStorage.getItem(REPORT_KEY) || "");
+}
+
+init();

@@ -33,6 +33,7 @@ dist/
 build/
 .cache/
 .parcel-cache/
+.tools/
 
 # Local app data
 reports/*.local.md

@@ -19,6 +19,9 @@
 
 ```text
 PORT=3000
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=
+BOT_API_BASE=http://localhost:3000
 ```
 
 4. Запустите:
@@ -33,6 +36,31 @@ npm run dev
 http://localhost:3000
 ```
 
+## Запуск Telegram-бота
+
+1. Создайте бота через BotFather.
+2. Заполните в `.env`:
+
+```text
+TELEGRAM_BOT_TOKEN=token_from_botfather
+TELEGRAM_BOT_USERNAME=your_bot_username
+BOT_API_BASE=http://localhost:3000
+```
+
+3. В одном терминале запустите backend:
+
+```powershell
+npm run dev
+```
+
+4. Во втором терминале запустите бота:
+
+```powershell
+npm run bot
+```
+
+После этого в HRBP-интерфейсе у каждого запуска появится Telegram-ссылка вида `https://t.me/<bot>?start=<survey_id>`.
+
 ## Что уже работает
 
 - прохождение опроса участником;
@@ -43,12 +71,13 @@ http://localhost:3000
 - определение зеленой / желтой / красной зоны;
 - отображение дословных комментариев;
 - генерация Markdown-отчета локальной логикой;
+- Telegram-бот для прохождения опроса;
 - копирование и скачивание отчета.
 
 ## Ограничения текущей версии
 
 - AI-анализ через API временно отключен, чтобы не расходовать токены на раннем прототипе;
-- нет Telegram-бота;
+- Telegram-бот работает через long polling и хранит незавершенные сессии в памяти;
 - нет общей базы;
 - нет авторизации и ролей.
 

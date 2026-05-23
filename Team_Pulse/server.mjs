@@ -133,6 +133,7 @@ async function handleApi(request, response, pathname) {
       aiEnabled: false,
       aiConfigured: false,
       model: null,
+      telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || null,
     });
     return;
   }

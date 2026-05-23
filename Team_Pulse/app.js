@@ -51,6 +51,7 @@ let backendAvailable = false;
 let surveys = [];
 let selectedSurvey = null;
 let participantSurveyId = new URLSearchParams(window.location.search).get("survey");
+let telegramBotUsername = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -67,6 +68,8 @@ async function apiRequest(path, options = {}) {
 
 async function loadSurveys() {
   try {
+    const health = await apiRequest("/api/health");
+    telegramBotUsername = health.telegramBotUsername || null;
     const data = await apiRequest("/api/surveys");
     backendAvailable = true;
     surveys = data.surveys || [];
@@ -196,6 +199,11 @@ function surveyLink(surveyId) {
   return `${window.location.origin}${window.location.pathname}?survey=${encodeURIComponent(surveyId)}`;
 }
 
+function telegramSurveyLink(surveyId) {
+  if (!telegramBotUsername) return null;
+  return `https://t.me/${telegramBotUsername}?start=${encodeURIComponent(surveyId)}`;
+}
+
 function renderDashboard() {
   const responses = getSelectedResponses();
   $("#responseCount").textContent = `${responses.length} ${plural(responses.length, ["ответ", "ответа", "ответов"])}`;
@@ -214,12 +222,17 @@ function renderDashboard() {
   }
 
   const link = surveyLink(selectedSurvey.id);
+  const telegramLink = telegramSurveyLink(selectedSurvey.id);
   $("#shareBox").innerHTML = `
     <div>
       <strong>Ссылка для участников</strong>
       <p>${escapeHtml(link)}</p>
+      ${telegramLink ? `<strong>Telegram</strong><p>${escapeHtml(telegramLink)}</p>` : ""}
     </div>
-    <button class="secondary" id="copySurveyLinkBtn" type="button">Копировать ссылку</button>
+    <div class="button-row">
+      <button class="secondary" id="copySurveyLinkBtn" type="button">Копировать web</button>
+      ${telegramLink ? `<button class="secondary" id="copyTelegramLinkBtn" type="button">Копировать Telegram</button>` : ""}
+    </div>
   `;
 
   if (!responses.length) {
@@ -429,6 +442,7 @@ function wireEvents() {
 
   $("#shareBox").addEventListener("click", async (event) => {
     if (event.target.id === "copySurveyLinkBtn" && selectedSurvey) await copyText(surveyLink(selectedSurvey.id));
+    if (event.target.id === "copyTelegramLinkBtn" && selectedSurvey) await copyText(telegramSurveyLink(selectedSurvey.id));
   });
 
   $("#surveyForm").addEventListener("submit", async (event) => {

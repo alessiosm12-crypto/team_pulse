@@ -25,14 +25,14 @@
       <section class="panel active" id="surveyPanel">
         <div class="section-head">
           <div>
-            <h2>Ответ участника</h2>
-            <p>Свободные ответы могут попасть в отчет дословно.</p>
+            <h2 id="surveyTitle">Ответ участника</h2>
+            <p id="surveyHint">Свободные ответы могут попасть в отчет дословно.</p>
           </div>
           <button class="secondary" id="loadSampleBtn" type="button">Загрузить тестовые ответы</button>
         </div>
 
         <form id="surveyForm" class="survey-form">
-          <label class="field">
+          <label class="field" id="teamNameField">
             <span>Команда</span>
             <input id="teamName" name="teamName" autocomplete="off" required value="Проектная команда A" />
           </label>
@@ -51,31 +51,46 @@
         <div class="section-head">
           <div>
             <h2>Рабочая область HRBP</h2>
-            <p id="dashboardSubhead">Данных пока нет</p>
+            <p id="dashboardSubhead">Создайте запуск опроса или выберите существующий.</p>
           </div>
           <div class="button-row">
-            <button class="secondary" id="clearDataBtn" type="button">Сбросить данные</button>
+            <button class="secondary" id="refreshSurveysBtn" type="button">Обновить</button>
             <button class="primary" id="buildReportBtn" type="button">Сформировать отчет</button>
           </div>
         </div>
 
-        <div class="metrics-grid" id="metricsGrid"></div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Блок</th>
-                <th>Средний балл</th>
-                <th>Сигнал</th>
-              </tr>
-            </thead>
-            <tbody id="blockTable"></tbody>
-          </table>
-        </div>
+        <form class="create-survey" id="createSurveyForm">
+          <label class="field">
+            <span>Новый запуск опроса</span>
+            <input id="newSurveyTeamName" name="newSurveyTeamName" autocomplete="off" required placeholder="Название команды" />
+          </label>
+          <button class="primary" type="submit">Создать опрос</button>
+        </form>
 
-        <div class="comments">
-          <h3>Дословные комментарии</h3>
-          <div id="commentList" class="comment-list"></div>
+        <div class="survey-workspace">
+          <aside class="survey-list" id="surveyList"></aside>
+
+          <div class="survey-detail">
+            <div class="share-box" id="shareBox"></div>
+            <div class="metrics-grid" id="metricsGrid"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Блок</th>
+                    <th>Средний балл</th>
+                    <th>Сигнал</th>
+                  </tr>
+                </thead>
+                <tbody id="blockTable"></tbody>
+              </table>
+            </div>
+
+            <div class="comments">
+              <h3>Дословные комментарии</h3>
+              <div id="commentList" class="comment-list"></div>
+            </div>
+          </div>
         </div>
       </section>
 

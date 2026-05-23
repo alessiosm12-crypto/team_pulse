@@ -39,6 +39,7 @@ build/
 reports/*.local.md
 data/responses.local.json
 **/data/responses.local.json
+**/data/surveys.local.json
 **/reports/*.md
 
 # Local side projects/tools

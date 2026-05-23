@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { writeFile, mkdir, stat } from "node:fs/promises";
+import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,7 @@ const rootDir = resolve(__dirname);
 const dataDir = join(rootDir, "data");
 const reportsDir = join(rootDir, "reports");
 const responsesPath = join(dataDir, "responses.local.json");
+const surveysPath = join(dataDir, "surveys.local.json");
 const port = Number(process.env.PORT || 3000);
 
 const mimeTypes = {
@@ -46,6 +47,11 @@ async function ensureStorage() {
     await stat(responsesPath);
   } catch {
     await writeJson(responsesPath, []);
+  }
+  try {
+    await stat(surveysPath);
+  } catch {
+    await writeJson(surveysPath, []);
   }
 }
 
@@ -91,6 +97,35 @@ async function saveReport(markdown) {
   return filename;
 }
 
+function createId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function readSurveys() {
+  return readJson(surveysPath, []);
+}
+
+async function writeSurveys(surveys) {
+  await writeJson(surveysPath, surveys);
+}
+
+function publicSurvey(survey) {
+  return {
+    id: survey.id,
+    teamName: survey.teamName,
+    status: survey.status,
+    createdAt: survey.createdAt,
+    closedAt: survey.closedAt || null,
+    responseCount: survey.responses.length,
+  };
+}
+
+function matchSurveyRoute(pathname) {
+  const match = pathname.match(/^\/api\/surveys\/([^/]+)(?:\/(responses|close))?$/);
+  if (!match) return null;
+  return { id: decodeURIComponent(match[1]), action: match[2] || null };
+}
+
 async function handleApi(request, response, pathname) {
   if (pathname === "/api/health" && request.method === "GET") {
     sendJson(response, 200, {
@@ -105,6 +140,78 @@ async function handleApi(request, response, pathname) {
   if (pathname === "/api/responses" && request.method === "GET") {
     sendJson(response, 200, { responses: await readJson(responsesPath, []) });
     return;
+  }
+
+  if (pathname === "/api/surveys" && request.method === "GET") {
+    const surveys = await readSurveys();
+    sendJson(response, 200, { surveys: surveys.map(publicSurvey) });
+    return;
+  }
+
+  if (pathname === "/api/surveys" && request.method === "POST") {
+    const body = await readBody(request);
+    const teamName = String(body.teamName || "").trim();
+    if (!teamName) {
+      sendJson(response, 400, { error: "teamName is required" });
+      return;
+    }
+
+    const surveys = await readSurveys();
+    const survey = {
+      id: createId(),
+      teamName,
+      status: "active",
+      createdAt: new Date().toISOString(),
+      closedAt: null,
+      responses: [],
+      actionItems: [],
+    };
+    surveys.unshift(survey);
+    await writeSurveys(surveys);
+    sendJson(response, 201, { survey: publicSurvey(survey) });
+    return;
+  }
+
+  const surveyRoute = matchSurveyRoute(pathname);
+  if (surveyRoute) {
+    const surveys = await readSurveys();
+    const survey = surveys.find((item) => item.id === surveyRoute.id);
+    if (!survey) {
+      sendJson(response, 404, { error: "Survey not found" });
+      return;
+    }
+
+    if (!surveyRoute.action && request.method === "GET") {
+      sendJson(response, 200, { survey });
+      return;
+    }
+
+    if (surveyRoute.action === "responses" && request.method === "POST") {
+      if (survey.status !== "active") {
+        sendJson(response, 409, { error: "Survey is closed" });
+        return;
+      }
+      const body = await readBody(request);
+      const item = {
+        id: createId(),
+        teamName: survey.teamName,
+        scores: body.scores || {},
+        comments: body.comments || {},
+        createdAt: new Date().toISOString(),
+      };
+      survey.responses.push(item);
+      await writeSurveys(surveys);
+      sendJson(response, 201, { survey: publicSurvey(survey), response: item });
+      return;
+    }
+
+    if (surveyRoute.action === "close" && request.method === "POST") {
+      survey.status = "closed";
+      survey.closedAt = new Date().toISOString();
+      await writeSurveys(surveys);
+      sendJson(response, 200, { survey: publicSurvey(survey) });
+      return;
+    }
   }
 
   if (pathname === "/api/responses" && request.method === "PUT") {

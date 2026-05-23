@@ -158,19 +158,6 @@ async function syncResponsesToServer(responses) {
   });
 }
 
-async function buildAiReport() {
-  const responses = getResponses();
-  const data = await apiRequest("/api/analyze", {
-    method: "POST",
-    body: JSON.stringify({
-      responses,
-      questions: QUESTIONS,
-      openQuestions: OPEN_QUESTIONS,
-    }),
-  });
-  return data.report;
-}
-
 function renderQuestions() {
   $("#scaleQuestions").innerHTML = QUESTIONS.map((question, index) => `
     <fieldset class="question">
@@ -486,7 +473,7 @@ function wireEvents() {
     $("#reportState").textContent = "Формирую отчет...";
     let report;
     try {
-      report = backendAvailable ? await buildAiReport() : buildReport();
+      report = buildReport();
     } catch (error) {
       report = `${buildReport()}\n\n## AI-анализ недоступен\n\n${error.message}`;
     }

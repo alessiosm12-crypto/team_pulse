@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { writeFile, mkdir, stat } from "node:fs/promises";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +27,6 @@ const rootDir = resolve(__dirname);
 const dataDir = join(rootDir, "data");
 const reportsDir = join(rootDir, "reports");
 const responsesPath = join(dataDir, "responses.local.json");
-const promptPath = join(rootDir, "prompts", "analysis_prompt.md");
 const port = Number(process.env.PORT || 3000);
 
 const mimeTypes = {
@@ -84,60 +83,6 @@ function sendText(response, statusCode, text) {
   response.end(text);
 }
 
-function getOutputText(apiResponse) {
-  if (apiResponse.output_text) return apiResponse.output_text;
-  const chunks = [];
-  for (const item of apiResponse.output || []) {
-    for (const content of item.content || []) {
-      if (content.type === "output_text" && content.text) chunks.push(content.text);
-    }
-  }
-  return chunks.join("\n").trim();
-}
-
-async function callOpenAI({ prompt, payload }) {
-  if (!process.env.OPENAI_API_KEY) {
-    const error = new Error("OPENAI_API_KEY is not configured");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      instructions: prompt,
-      input: JSON.stringify(payload, null, 2),
-      text: {
-        format: {
-          type: "text",
-        },
-      },
-    }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    const message = data?.error?.message || `OpenAI API error: ${response.status}`;
-    const error = new Error(message);
-    error.statusCode = response.status;
-    throw error;
-  }
-
-  const report = getOutputText(data);
-  if (!report) {
-    const error = new Error("OpenAI API returned an empty report");
-    error.statusCode = 502;
-    throw error;
-  }
-  return { report, model, responseId: data.id };
-}
-
 async function saveReport(markdown) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `team-pulse-report-${timestamp}.md`;
@@ -150,8 +95,9 @@ async function handleApi(request, response, pathname) {
   if (pathname === "/api/health" && request.method === "GET") {
     sendJson(response, 200, {
       ok: true,
-      aiConfigured: Boolean(process.env.OPENAI_API_KEY),
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      aiEnabled: false,
+      aiConfigured: false,
+      model: null,
     });
     return;
   }
@@ -185,20 +131,10 @@ async function handleApi(request, response, pathname) {
   }
 
   if (pathname === "/api/analyze" && request.method === "POST") {
-    const body = await readBody(request);
-    const responses = Array.isArray(body.responses) ? body.responses : await readJson(responsesPath, []);
-    const prompt = await readFile(promptPath, "utf8");
-    const payload = {
-      generatedAt: new Date().toISOString(),
-      responseCount: responses.length,
-      responses,
-      questions: body.questions || [],
-      openQuestions: body.openQuestions || [],
-    };
-
-    const result = await callOpenAI({ prompt, payload });
-    const reportFile = await saveReport(result.report);
-    sendJson(response, 200, { ...result, reportFile });
+    sendJson(response, 503, {
+      error: "AI analysis is disabled for the local prototype",
+      aiEnabled: false,
+    });
     return;
   }
 

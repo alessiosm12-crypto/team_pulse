@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Team Pulse</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Team Pulse</p>
+          <h1>Пульс команды</h1>
+        </div>
+        <div class="status-pill" id="responseCount">0 ответов</div>
+      </header>
+
+      <nav class="tabs" aria-label="Разделы">
+        <button class="tab active" data-tab="survey" type="button">Опрос</button>
+        <button class="tab" data-tab="dashboard" type="button">HRBP</button>
+        <button class="tab" data-tab="report" type="button">Отчет</button>
+      </nav>
+
+      <section class="panel active" id="surveyPanel">
+        <div class="section-head">
+          <div>
+            <h2>Ответ участника</h2>
+            <p>Свободные ответы могут попасть в отчет дословно.</p>
+          </div>
+          <button class="secondary" id="loadSampleBtn" type="button">Загрузить тестовые ответы</button>
+        </div>
+
+        <form id="surveyForm" class="survey-form">
+          <label class="field">
+            <span>Команда</span>
+            <input id="teamName" name="teamName" autocomplete="off" required value="Проектная команда A" />
+          </label>
+
+          <div id="scaleQuestions" class="question-list"></div>
+          <div id="openQuestions" class="question-list"></div>
+
+          <div class="form-actions">
+            <button class="primary" type="submit">Сохранить ответ</button>
+            <button class="ghost" id="resetFormBtn" type="button">Очистить форму</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" id="dashboardPanel">
+        <div class="section-head">
+          <div>
+            <h2>Рабочая область HRBP</h2>
+            <p id="dashboardSubhead">Данных пока нет</p>
+          </div>
+          <div class="button-row">
+            <button class="secondary" id="clearDataBtn" type="button">Сбросить данные</button>
+            <button class="primary" id="buildReportBtn" type="button">Сформировать отчет</button>
+          </div>
+        </div>
+
+        <div class="metrics-grid" id="metricsGrid"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Блок</th>
+                <th>Средний балл</th>
+                <th>Сигнал</th>
+              </tr>
+            </thead>
+            <tbody id="blockTable"></tbody>
+          </table>
+        </div>
+
+        <div class="comments">
+          <h3>Дословные комментарии</h3>
+          <div id="commentList" class="comment-list"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="reportPanel">
+        <div class="section-head">
+          <div>
+            <h2>Отчет</h2>
+            <p id="reportState">Сформируйте отчет в рабочей области HRBP.</p>
+          </div>
+          <div class="button-row">
+            <button class="secondary" id="copyReportBtn" type="button">Копировать</button>
+            <button class="primary" id="downloadReportBtn" type="button">Скачать Markdown</button>
+          </div>
+        </div>
+        <article class="report-card" id="reportOutput"></article>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
